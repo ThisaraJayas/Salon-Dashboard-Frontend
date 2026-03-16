@@ -14,8 +14,8 @@ import { AxiosError } from "axios";
 import api from "@/lib/axios";
 import { useAuthContext } from "@/app/context/AuthContext";
 
-import bgImageDesktop from "@/assets/common/GemLogin.svg";
-import bgImageMobile from "@/assets/common/GemLoginMobile.svg";
+import bgImageDesktop from "@/assets/common/SalonLogin.svg";
+import bgImageMobile from "@/assets/common/SalonLoginMobile.svg";
 
 const varta = Varta({
   subsets: ["latin"],
@@ -280,7 +280,7 @@ export default function LoginForm() {
           <h2
             className={`${varta.className} text-[11px] text-center uppercase font-medium tracking-[0.2em] text-gray-900 mb-3`}
           >
-            GemCraft Learning Center
+            LUME SALON
           </h2>
 
           <h1
@@ -293,7 +293,8 @@ export default function LoginForm() {
             className={`${inter.className} text-gray-500 text-center mb-6 sm:mb-8 text-sm sm:text-base`}
           >
             Login to your{" "}
-            <span className="text-indigo-700 font-semibold">G L C</span> account
+            <span className="text-indigo-700 font-semibold">L U M E</span>{" "}
+            account
           </p>
 
           <form onSubmit={handleEmailLogin}>
