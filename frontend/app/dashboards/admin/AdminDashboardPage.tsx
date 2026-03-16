@@ -1,34 +1,34 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { User as FirebaseUser } from "firebase/auth";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import axios from "axios";
-import { auth } from "@/lib/firebase";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Swal, { SweetAlertOptions } from "sweetalert2";
 import { toast } from "react-toastify";
+import { useAuthContext } from "@/app/context/AuthContext";
 
-import logoImage from "../../../assets/Gem Craft Logo.jpg";
+import logoImage from "../../../assets/salon.png";
 
 import {
   ChevronLeft,
-  Layers,
-  LogOut,
-  User,
   Users,
+  Scissors,
   Calendar,
   Clock,
-  Eye,
+  User,
+  LogOut,
+  CreditCard,
+  Briefcase,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { Inter } from "next/font/google";
-import { AuthUser } from "@/app/types/auth";
 
-import ManageStudentsPage from "@/components/Admin_Dashboard/ManageStudentsPage";
-import ManageBatchesPage from "@/components/Admin_Dashboard/ManageBatchesPage";
-import ManageReviewersPage from "@/components/Admin_Dashboard/ManageReviewersPage";
+// Import Admin Components
+import ManageCustomersPage from "@/components/Admin_Dashboard/ManageCustomersPage";
+import ManageServicesPage from "@/components/Admin_Dashboard/ManageServicesPage";
+import ManageAppointmentsPage from "@/components/Admin_Dashboard/ManageAppointmentsPage";
+import ManagePaymentsPage from "@/components/Admin_Dashboard/ManagePaymentsPage";
+import ManageStaffPage from "@/components/Admin_Dashboard/ManageStaffPage";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,7 +48,6 @@ const DateTimeDisplay = ({
   currentDate: string;
   currentTime: string;
 }) => {
-  // Get abbreviated day for mobile (e.g., "Tue" instead of "Tuesday")
   const abbreviatedDay = currentDay.slice(0, 3);
 
   return (
@@ -56,42 +55,35 @@ const DateTimeDisplay = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center rounded-xl px-3 py-1.5"
+      className="flex items-center rounded-xl px-3 py-1.5 bg-rose-50/50 dark:bg-rose-950/20"
     >
       {/* Mobile: Abbreviated day and time */}
       <div className="flex items-center gap-2 sm:hidden">
-        <span className="text-xs font-medium text-gray-900">
+        <span className="text-xs font-medium text-rose-700 dark:text-rose-300">
           {abbreviatedDay}
         </span>
-        <div className="w-px h-4 bg-gray-300"></div>
-        <span className="text-xs font-semibold text-gray-900">
+        <div className="w-px h-4 bg-rose-200 dark:bg-rose-800"></div>
+        <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">
           {currentTime}
         </span>
       </div>
 
       {/* Desktop: Full date and time */}
       <div className="hidden sm:flex items-center gap-3">
-        {/* Calendar Icon */}
-        <Calendar className="w-4 h-4 text-gray-800" />
-
-        {/* Separator */}
-        <div className="w-px h-5 bg-gray-300"></div>
-
-        {/* Date Info */}
+        <Calendar className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+        <div className="w-px h-5 bg-rose-200 dark:bg-rose-800"></div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-900">
+          <span className="text-xs font-medium text-rose-700 dark:text-rose-300">
             {currentDay}
           </span>
-          <span className="text-xs text-gray-900">{currentDate}</span>
+          <span className="text-xs text-rose-600 dark:text-rose-400">
+            {currentDate}
+          </span>
         </div>
-
-        {/* Separator */}
-        <div className="w-px h-5 bg-gray-300"></div>
-
-        {/* Time with Clock Icon */}
+        <div className="w-px h-5 bg-rose-200 dark:bg-rose-800"></div>
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gray-800" />
-          <span className="text-xs font-semibold text-gray-900">
+          <Clock className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+          <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">
             {currentTime}
           </span>
         </div>
@@ -100,16 +92,77 @@ const DateTimeDisplay = ({
   );
 };
 
+// User Avatar Component for consistent display
+const UserAvatar = ({
+  user,
+  size = "md",
+}: {
+  user: { firstname: string; lastname: string } | null;
+  size?: "sm" | "md" | "lg";
+}) => {
+  const sizeClasses = {
+    sm: "w-8 h-8 text-sm",
+    md: "w-12 h-12 text-xl",
+    lg: "w-16 h-16 text-2xl",
+  };
+
+  const getInitials = () => {
+    if (!user) return <User className="w-5 h-5 md:w-6 md:h-6" />;
+    return `${user.firstname.charAt(0)}${user.lastname.charAt(0)}`.toUpperCase();
+  };
+
+  const getBackgroundColor = () => {
+    if (!user) return "bg-rose-200";
+
+    const colors = [
+      "bg-rose-500",
+      "bg-amber-500",
+      "bg-pink-500",
+      "bg-purple-500",
+      "bg-emerald-500",
+      "bg-orange-500",
+      "bg-teal-500",
+    ];
+
+    const hash = user.firstname.split("").reduce((acc, char) => {
+      return acc + char.charCodeAt(0);
+    }, 0);
+
+    return colors[hash % colors.length];
+  };
+
+  if (!user) {
+    return (
+      <div
+        className={`${sizeClasses[size]} rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center`}
+      >
+        <User className="w-5 h-5 md:w-6 md:h-6 text-rose-600 dark:text-rose-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${sizeClasses[size]} rounded-full ${getBackgroundColor()} flex items-center justify-center text-white font-medium shadow-lg`}
+      style={{ lineHeight: 1 }}
+    >
+      <span className="flex items-center justify-center w-full h-full">
+        {getInitials()}
+      </span>
+    </div>
+  );
+};
+
 const AdminDashboardPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, loading: authLoading, logout: authLogout } = useAuthContext();
 
-  const [activeTab, setActiveTab] = useState("students");
+  const activeTab = searchParams.get("tab") ?? "customers";
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [adminUser, setAdminUser] = useState<AuthUser | null>(null);
 
   const mainContentRef = useRef<HTMLElement>(null);
 
@@ -124,7 +177,6 @@ const AdminDashboardPage = () => {
     const updateDateTime = () => {
       const now = new Date();
 
-      // Format date: "February 11, 2026"
       const dateOptions: Intl.DateTimeFormatOptions = {
         month: "long",
         day: "numeric",
@@ -132,7 +184,6 @@ const AdminDashboardPage = () => {
       };
       setCurrentDate(now.toLocaleDateString("en-US", dateOptions));
 
-      // Format time: "03:09 PM"
       const timeOptions: Intl.DateTimeFormatOptions = {
         hour: "2-digit",
         minute: "2-digit",
@@ -140,17 +191,12 @@ const AdminDashboardPage = () => {
       };
       setCurrentTime(now.toLocaleTimeString("en-US", timeOptions));
 
-      // Format day: "Tuesday"
       const dayOptions: Intl.DateTimeFormatOptions = { weekday: "long" };
       setCurrentDay(now.toLocaleDateString("en-US", dayOptions));
     };
 
-    // Update immediately
     updateDateTime();
-
-    // Update every minute
     const interval = setInterval(updateDateTime, 60000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -166,33 +212,18 @@ const AdminDashboardPage = () => {
      Auth Guard
   ====================================================== */
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (!authLoading) {
       if (!user) {
         router.replace("/auth/login");
         return;
       }
 
-      try {
-        const token = await user.getIdToken();
-        const { data } = await axios.get<{ user: AuthUser }>(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/me`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-
-        if (data.user.role !== "ADMIN") {
-          router.replace("/auth/login");
-          return;
-        }
-
-        setFirebaseUser(user);
-        setAdminUser(data.user);
-      } catch {
+      if (user.role !== "ADMIN") {
         router.replace("/auth/login");
+        return;
       }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
+    }
+  }, [user, authLoading, router]);
 
   /* ======================================================
      Handle sidebar toggle with animation lock
@@ -209,17 +240,17 @@ const AdminDashboardPage = () => {
   ====================================================== */
   const handleLogout = async () => {
     const result = await Swal.fire({
-      title: "Logout?",
-      text: "Are you sure you want to logout?",
-      icon: "warning",
+      title: "Leave so soon?",
+      text: "Your admin session will end. Are you sure you want to logout?",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#000",
+      confirmButtonColor: "#e11d48",
+      cancelButtonColor: "#6b7280",
       confirmButtonText: "Yes, logout",
-      cancelButtonText: "No, Stay In",
+      cancelButtonText: "Stay",
       customClass: {
         popup: "!rounded-3xl font-inter",
-        title: "!font-inter",
+        title: "!font-inter !text-rose-800 dark:!text-rose-300",
         container: "!font-inter",
         confirmButton:
           "!rounded-full !px-5 !py-2 !text-sm font-inter !font-semibold",
@@ -231,7 +262,7 @@ const AdminDashboardPage = () => {
 
     if (result.isConfirmed) {
       try {
-        await signOut(auth);
+        authLogout();
         router.push("/auth/login");
         toast.success("Logged out successfully");
       } catch {
@@ -240,35 +271,67 @@ const AdminDashboardPage = () => {
     }
   };
 
-  const tabLabels: Record<string, string> = {
-    students: "Students",
-    batches: "Batches",
-    reviewers: "Reviewers",
+  const handleTabChange = (tab: string) => {
+    router.replace(`?tab=${tab}`);
   };
 
+  const tabParentMap: Record<string, string> = {};
+
+  const tabLabels: Record<string, string> = {
+    customers: "Customers",
+    services: "Services",
+    appointments: "Appointments",
+    payments: "Payments",
+    staff: "Staff",
+  };
+
+  const parentTab = tabParentMap[activeTab] ?? null;
+
   const navItems = [
-    { icon: Users, label: "Students", tab: "students" },
-    { icon: Layers, label: "Batches", tab: "batches" },
-    { icon: Eye, label: "Reviewers", tab: "reviewers" },
+    { icon: Users, label: "Customers", tab: "customers" },
+    { icon: Scissors, label: "Services", tab: "services" },
+    { icon: Calendar, label: "Appointments", tab: "appointments" },
+    { icon: CreditCard, label: "Payments", tab: "payments" },
+    { icon: Briefcase, label: "Staff", tab: "staff" },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
-      case "students":
-        return <ManageStudentsPage />;
-      case "batches":
-        return <ManageBatchesPage />;
-      case "reviewers":
-        return <ManageReviewersPage />;
+      case "customers":
+        return <ManageCustomersPage />;
+      case "services":
+        return <ManageServicesPage />;
+      case "appointments":
+        return <ManageAppointmentsPage />;
+      case "payments":
+        return <ManagePaymentsPage />;
+      case "staff":
+        return <ManageStaffPage />;
       default:
-        return <ManageStudentsPage />;
+        return <ManageCustomersPage />;
     }
   };
 
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 via-white to-amber-50 dark:from-rose-950 dark:via-gray-900 dark:to-amber-950">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-rose-600 dark:text-rose-400">
+            Loading admin dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex h-screen bg-gray-50 ${inter.className}`}>
+    <div
+      className={`flex h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50 dark:from-rose-950 dark:via-gray-900 dark:to-amber-950 ${inter.className}`}
+    >
       {/* ======================================================
-         SIDEBAR with Smooth Animation
+         SIDEBAR
       ====================================================== */}
       <motion.aside
         initial={false}
@@ -278,10 +341,10 @@ const AdminDashboardPage = () => {
           duration: 0.25,
           ease: "easeInOut",
         }}
-        className="hidden lg:flex flex-col bg-white dark:bg-blue-950 border-r border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-40 overflow-hidden"
+        className="hidden lg:flex flex-col bg-white/80 dark:bg-gray-900/90 backdrop-blur-xl border-r border-rose-200 dark:border-rose-800/30 shadow-lg sticky top-0 z-40 overflow-hidden"
       >
-        {/* ================= LOGO with Animation ================= */}
-        <div className="p-5 border-b border-gray-100 dark:border-gray-700">
+        {/* ================= LOGO ================= */}
+        <div className="p-5 border-b border-rose-100 dark:border-rose-800/30">
           <div className="flex items-center justify-between h-12 relative">
             <motion.div
               className="flex items-center overflow-hidden"
@@ -301,10 +364,10 @@ const AdminDashboardPage = () => {
               >
                 <Image
                   src={logoImage}
-                  alt="Logo"
+                  alt="LUME Salon"
                   width={40}
                   height={40}
-                  className="rounded-lg border-2 border-gray-100 dark:border-gray-300"
+                  className="rounded-lg border-2 border-rose-200 dark:border-rose-700 shadow-md"
                 />
               </motion.div>
 
@@ -323,24 +386,25 @@ const AdminDashboardPage = () => {
                 className="overflow-hidden whitespace-nowrap"
               >
                 <div className="leading-tight">
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
-                    G L C
+                  <p className="text-xl font-bold bg-gradient-to-r from-rose-600 to-amber-600 bg-clip-text text-transparent">
+                    LUME Salon
                   </p>
-                  <p className="text-xs text-gray-700 dark:text-gray-300">
+                  <p className="text-xs text-rose-600 dark:text-rose-400">
                     Admin Dashboard
                   </p>
                 </div>
               </motion.div>
             </motion.div>
 
+            {/* Toggle Button */}
             <motion.button
               onClick={handleSidebarToggle}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="absolute -right-3.5 top-11.5 bg-white dark:bg-gray-600 border border-gray-400 dark:border-gray-600 rounded-full p-1.5 shadow-md hover:shadow-lg transition-shadow z-50"
+              className="absolute -right-3.5 top-11.5 bg-white dark:bg-gray-800 border border-rose-300 dark:border-rose-700 rounded-full p-1.5 shadow-md hover:shadow-lg transition-shadow z-50"
             >
               <ChevronLeft
-                className={`w-4 h-4 text-gray-700 dark:text-gray-300 transition-transform duration-250 ${
+                className={`w-4 h-4 text-rose-600 dark:text-rose-400 transition-transform duration-250 ${
                   isSidebarCollapsed ? "rotate-180" : ""
                 }`}
               />
@@ -348,26 +412,27 @@ const AdminDashboardPage = () => {
           </div>
         </div>
 
-        {/* ================= TAB NAVIGATION ================= */}
+        {/* ================= DESKTOP TAB NAVIGATION ================= */}
         <nav className="flex-1 px-2 py-4 space-y-1">
           {navItems.map(({ icon: Icon, label, tab }) => {
-            const isActive = activeTab === tab;
+            const isActive =
+              activeTab === tab || tabParentMap[activeTab] === tab;
             return (
               <motion.div key={tab} initial={false} className="px-1">
                 <motion.button
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => handleTabChange(tab)}
                   whileTap={{ scale: 0.98 }}
                   className={`relative w-full flex items-center rounded-2xl p-3 transition-all duration-200 ${
                     isActive
-                      ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium border dark:border-gray-200"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600"
+                      ? "bg-gradient-to-r from-rose-100 to-amber-100 dark:from-rose-900/50 dark:to-amber-900/50 text-rose-900 dark:text-rose-100 font-medium border border-rose-300 dark:border-rose-700 shadow-md"
+                      : "text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-900 dark:hover:text-rose-100 border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
                   } ${isSidebarCollapsed ? "justify-center" : ""}`}
                 >
-                  {/* Active Indicator - Simple black line */}
+                  {/* Active Indicator */}
                   {isActive && (
                     <motion.div
                       layoutId="active-indicator"
-                      className="absolute left-0 w-1 h-6 bg-gray-900 dark:bg-white rounded-r-full"
+                      className="absolute left-0 w-1 h-6 bg-gradient-to-b from-rose-500 to-amber-500 rounded-r-full"
                       transition={{
                         type: "spring",
                         stiffness: 300,
@@ -376,18 +441,18 @@ const AdminDashboardPage = () => {
                     />
                   )}
 
-                  {/* Icon - Clean and simple */}
+                  {/* Icon */}
                   <div
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2 rounded-lg transition-all ${
                       isActive
-                        ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300"
+                        ? "bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-lg"
+                        : "bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400"
                     } ${isSidebarCollapsed ? "" : "mr-3"}`}
                   >
                     <Icon className="w-4.5 h-4.5" />
                   </div>
 
-                  {/* Label with smooth width animation */}
+                  {/* Label */}
                   {!isSidebarCollapsed && (
                     <motion.div
                       initial={false}
@@ -405,9 +470,7 @@ const AdminDashboardPage = () => {
                       }}
                       className="flex-1 min-w-0 text-left overflow-hidden"
                     >
-                      <span className="text-sm tracking-wide text-gray-900 dark:text-white">
-                        {label}
-                      </span>
+                      <span className="text-sm tracking-wide">{label}</span>
                     </motion.div>
                   )}
                 </motion.button>
@@ -416,75 +479,54 @@ const AdminDashboardPage = () => {
           })}
         </nav>
 
-        {/* =================  PROFILE DESIGN ================= */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        {/* ================= DESKTOP PROFILE DESIGN ================= */}
+        <div className="p-4 border-t border-rose-100 dark:border-rose-800/30">
           <div
             className={`flex ${isSidebarCollapsed ? "justify-center" : "items-start"}`}
           >
-            {/* Circular Avatar with inset effect */}
+            {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 p-[2px] shadow-sm">
-                <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 overflow-hidden border border-gray-700/80 dark:border-gray-500">
-                  {adminUser?.profilePicture ? (
-                    <Image
-                      src={adminUser.profilePicture}
-                      alt="Profile"
-                      width={48}
-                      height={48}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : firebaseUser?.photoURL ? (
-                    <Image
-                      src={firebaseUser.photoURL}
-                      alt="Profile"
-                      width={48}
-                      height={48}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-700">
-                      <User className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-                    </div>
-                  )}
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full p-[3px] bg-gradient-to-br from-rose-400 to-amber-400">
+                <div className="w-full h-full rounded-full overflow-hidden border-2 border-white dark:border-gray-900">
+                  <UserAvatar user={user} size="md" />
                 </div>
               </div>
             </div>
 
             {/* Expanded Profile Details */}
-            {!isSidebarCollapsed && (
+            {!isSidebarCollapsed && user && (
               <motion.div
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.25 }}
                 className="flex-1 min-w-0 ml-4"
               >
-                {/* Name and Role */}
                 <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate mb-0.5">
-                    {adminUser?.firstname
-                      ? `${adminUser.firstname} ${adminUser.lastname || ""}`.trim()
-                      : "System Admin"}
+                  <h4 className="text-sm font-semibold text-rose-900 dark:text-rose-100 truncate mb-0.5">
+                    {user.firstname && user.lastname
+                      ? `${user.firstname} ${user.lastname}`.trim()
+                      : "Admin"}
                   </h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate mb-2">
-                    {adminUser?.email || firebaseUser?.email}
+                  <p className="text-xs text-rose-600 dark:text-rose-400 truncate mb-2">
+                    {user.email}
                   </p>
 
                   {/* Role Badge */}
-                  <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-100 dark:bg-gray-700 border border-black dark:border-gray-500 rounded-full">
-                    <div className="w-2 h-2 bg-gray-900 dark:bg-white rounded-full" />
-                    <span className="text-xs text-gray-900 dark:text-white">
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-gradient-to-r from-rose-100 to-amber-100 dark:from-rose-900/50 dark:to-amber-900/50 border border-rose-300 dark:border-rose-700 rounded-full">
+                    <div className="w-2 h-2 bg-rose-500 rounded-full" />
+                    <span className="text-xs text-rose-800 dark:text-rose-200">
                       Administrator
                     </span>
                   </div>
                 </div>
 
-                {/* Action Button */}
+                {/* Logout Button */}
                 <div className="flex gap-2">
                   <motion.button
                     onClick={handleLogout}
-                    whileHover={{ backgroundColor: "#111827" }}
+                    whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl bg-gray-900 dark:bg-gray-700 text-white hover:shadow transition-all duration-200 flex items-center justify-center gap-2"
+                    className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 text-white hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     Logout
@@ -500,43 +542,45 @@ const AdminDashboardPage = () => {
          MOBILE AREA
       ====================================================== */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header - Fixed with hamburger menu */}
-        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white z-30 border-b border-gray-200">
+        {/* Mobile Header */}
+        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl z-30 border-b border-rose-200 dark:border-rose-800/30">
           <div className="flex items-center justify-between h-full px-6">
             <div className="flex items-center gap-3">
               <Image
                 src={logoImage}
-                alt="Logo"
+                alt="LUME Salon"
                 width={40}
                 height={40}
-                className="rounded-lg border border-gray-300"
+                className="rounded-lg border border-rose-300 dark:border-rose-700"
               />
               <div>
-                <h1 className="text-lg font-medium text-gray-900">
-                  <span className="font-bold">G L C</span>
+                <h1 className="text-lg font-bold bg-gradient-to-r from-rose-600 to-amber-600 bg-clip-text text-transparent">
+                  LUME Salon
                 </h1>
-                <p className="text-xs text-gray-800">Admin Dashboard</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400">
+                  Admin Dashboard
+                </p>
               </div>
             </div>
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex items-center gap-2 px-2.5 py-2.5 rounded-full outline-1 outline-gray-400 bg-gray-100 hover:bg-gray-100 transition-colors group"
+              className="flex items-center gap-2 px-2.5 py-2.5 rounded-full bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-800/50 transition-colors group"
               aria-label="Toggle menu"
             >
               <div className="relative w-4 h-3.5 flex flex-col justify-between">
                 <span
-                  className={`w-full h-0.5 bg-gray-700 rounded-full transition-all duration-300 origin-left ${
+                  className={`w-full h-0.5 bg-rose-600 dark:bg-rose-400 rounded-full transition-all duration-300 origin-left ${
                     mobileMenuOpen ? "rotate-45 translate-y-1.5" : ""
                   }`}
                 ></span>
                 <span
-                  className={`w-full h-0.5 bg-gray-700 rounded-full transition-all duration-300 ${
+                  className={`w-full h-0.5 bg-rose-600 dark:bg-rose-400 rounded-full transition-all duration-300 ${
                     mobileMenuOpen ? "opacity-0" : ""
                   }`}
                 ></span>
                 <span
-                  className={`w-full h-0.5 bg-gray-700 rounded-full transition-all duration-300 origin-left ${
+                  className={`w-full h-0.5 bg-rose-600 dark:bg-rose-400 rounded-full transition-all duration-300 origin-left ${
                     mobileMenuOpen ? "-rotate-45 -translate-y-1.5" : ""
                   }`}
                 ></span>
@@ -564,57 +608,40 @@ const AdminDashboardPage = () => {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed bottom-0 left-0 right-0 bg-white dark:bg-blue-950 rounded-t-2xl shadow-2xl z-50 lg:hidden border-t border-gray-200 dark:border-gray-700"
+                className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-t-2xl shadow-2xl z-50 lg:hidden border-t border-rose-200 dark:border-rose-800/30"
               >
                 <div className="p-6">
                   {/* Drag handle */}
                   <div className="flex justify-center mb-6">
-                    <div className="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                    <div className="w-12 h-1.5 rounded-full bg-rose-300 dark:bg-rose-700"></div>
                   </div>
 
                   {/* Profile Section */}
-                  <div className="flex items-center gap-3 mb-6 px-4 py-3 bg-gradient-to-br from-gray-50 to-indigo-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-50 to-indigo-200 dark:from-gray-600 dark:to-gray-500 p-[2px]">
-                      <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 overflow-hidden border border-gray-700 dark:border-gray-500">
-                        {adminUser?.profilePicture ? (
-                          <Image
-                            src={adminUser.profilePicture}
-                            alt="Profile"
-                            width={48}
-                            height={48}
-                            className="object-cover w-full h-full"
-                          />
-                        ) : firebaseUser?.photoURL ? (
-                          <Image
-                            src={firebaseUser.photoURL}
-                            alt="Profile"
-                            width={48}
-                            height={48}
-                            className="object-cover w-full h-full"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-indigo-100 dark:bg-gray-600">
-                            <User className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-                          </div>
-                        )}
+                  {user && (
+                    <div className="flex items-center gap-3 mb-6 px-4 py-3 bg-gradient-to-br from-rose-100 to-amber-100 dark:from-rose-900/50 dark:to-amber-900/50 rounded-2xl">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full p-[2px] bg-gradient-to-br from-rose-400 to-amber-400">
+                        <div className="w-full h-full rounded-full overflow-hidden border-2 border-white dark:border-gray-900">
+                          <UserAvatar user={user} size="sm" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold text-rose-900 dark:text-rose-100 truncate">
+                          {user.firstname && user.lastname
+                            ? `${user.firstname} ${user.lastname}`.trim()
+                            : "Admin"}
+                        </h4>
+                        <p className="text-xs text-rose-600 dark:text-rose-400 truncate">
+                          {user.email}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                        {adminUser?.firstname
-                          ? `${adminUser.firstname} ${adminUser.lastname || ""}`.trim()
-                          : "Administrator"}
-                      </h4>
-                      <p className="text-xs text-gray-800 dark:text-gray-300 truncate">
-                        {adminUser?.email || firebaseUser?.email}
-                      </p>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Menu items */}
                   <div className="space-y-1">
-                    {navItems.map(({ icon: Icon, label, tab }, index) => {
-                      const isActive = activeTab === tab;
+                    {navItems.map(({ icon: Icon, label, tab }) => {
+                      const isActive =
+                        activeTab === tab || tabParentMap[activeTab] === tab;
 
                       return (
                         <motion.div
@@ -622,39 +649,34 @@ const AdminDashboardPage = () => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{
-                            delay: index * 0.05,
+                            delay:
+                              navItems.findIndex((item) => item.tab === tab) *
+                              0.05,
                           }}
                         >
                           <button
                             onClick={() => {
-                              setActiveTab(tab);
+                              handleTabChange(tab);
                               setMobileMenuOpen(false);
                             }}
                             className={`flex items-center w-full gap-4 px-4 py-3 rounded-2xl transition-all ${
                               isActive
-                                ? "bg-gray-100 dark:bg-gray-700 text-black dark:text-white font-bold border dark:border-gray-600"
-                                : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
+                                ? "bg-gradient-to-r from-rose-100 to-amber-100 dark:from-rose-900/50 dark:to-amber-900/50 text-rose-900 dark:text-rose-100 font-bold border border-rose-300 dark:border-rose-700"
+                                : "hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-700 dark:text-rose-300 border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
                             }`}
                           >
                             <div
                               className={`p-2 rounded-lg ${
                                 isActive
-                                  ? "bg-gray-900 dark:bg-white"
-                                  : "bg-gray-100 dark:bg-gray-700"
+                                  ? "bg-gradient-to-r from-rose-500 to-amber-500 text-white"
+                                  : "bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400"
                               }`}
                             >
-                              <Icon
-                                size={20}
-                                className={
-                                  isActive
-                                    ? "text-white dark:text-gray-900"
-                                    : "text-gray-700 dark:text-gray-300"
-                                }
-                              />
+                              <Icon size={20} />
                             </div>
                             <span className="font-medium">{label}</span>
                             {isActive && (
-                              <div className="ml-auto w-2 h-2 rounded-full bg-gray-900 dark:bg-white animate-pulse"></div>
+                              <div className="ml-auto w-2 h-2 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 animate-pulse"></div>
                             )}
                           </button>
                         </motion.div>
@@ -666,13 +688,13 @@ const AdminDashboardPage = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: navItems.length * 0.05 }}
-                      className="pt-2 mt-4 border-t border-gray-200 dark:border-gray-700"
+                      className="pt-2 mt-4 border-t border-rose-200 dark:border-rose-800/30"
                     >
                       <button
                         onClick={handleLogout}
-                        className="flex items-center w-full gap-4 px-4 py-3 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                        className="flex items-center w-full gap-4 px-4 py-3 rounded-xl transition-all hover:bg-rose-100 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400"
                       >
-                        <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
+                        <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400">
                           <LogOut size={20} />
                         </div>
                         <span className="font-medium">Logout</span>
@@ -694,29 +716,42 @@ const AdminDashboardPage = () => {
           <div className="shrink-0">
             <div className="p-3 pl-4 pr-4">
               <div className="flex items-center justify-between">
-                {activeTab !== "students" && (
-                  <nav className="text-xs sm:text-sm text-gray-500">
+                {activeTab !== "customers" && (
+                  <nav className="text-xs sm:text-sm text-rose-500 dark:text-rose-400">
                     <ol className="flex items-center space-x-2">
                       <li>
                         <button
-                          onClick={() => setActiveTab("students")}
-                          className="hover:text-gray-800"
+                          onClick={() => handleTabChange("customers")}
+                          className="hover:text-rose-700 dark:hover:text-rose-300"
                         >
-                          Students
+                          Dashboard
                         </button>
                       </li>
+
+                      {parentTab && (
+                        <>
+                          <li>/</li>
+                          <li>
+                            <button
+                              onClick={() => handleTabChange(parentTab)}
+                              className="hover:text-rose-700 dark:hover:text-rose-300"
+                            >
+                              {tabLabels[parentTab]}
+                            </button>
+                          </li>
+                        </>
+                      )}
+
                       <li>/</li>
-                      <li className="font-medium text-gray-900">
+                      <li className="font-medium text-rose-900 dark:text-rose-100">
                         {tabLabels[activeTab]}
                       </li>
                     </ol>
                   </nav>
                 )}
 
-                {/* Spacer when no breadcrumbs */}
-                {activeTab === "students" && <div />}
+                {activeTab === "customers" && <div />}
 
-                {/* Date and Time Display on the right */}
                 <DateTimeDisplay
                   currentDay={currentDay}
                   currentDate={currentDate}
@@ -727,26 +762,11 @@ const AdminDashboardPage = () => {
           </div>
 
           {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto pl-6 pr-6 bg-gradient-to-br from-indigo-50/70 via-blue-50/40 to-yellow-50/60">
+          <div className="flex-1 overflow-y-auto pl-6 pr-6">
             {renderContent()}
           </div>
         </main>
       </div>
-
-      <style jsx global>{`
-        .overflow-y-auto::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        .overflow-y-auto::-webkit-scrollbar-thumb {
-          background: #b0c9ec;
-          border-radius: 999px;
-        }
-
-        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-          background: #6793dc;
-        }
-      `}</style>
     </div>
   );
 };
