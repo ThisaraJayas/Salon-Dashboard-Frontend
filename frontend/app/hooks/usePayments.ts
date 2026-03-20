@@ -31,7 +31,12 @@ export const usePayments = () => {
 
     return data;
   };
-
+const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return 'Something went wrong';
+  };
   // Fetch all bookings
   const fetchBookings = useCallback(async () => {
     try {
@@ -39,9 +44,9 @@ export const usePayments = () => {
       const response = await fetch(`${API_URL}/api/bookings`);
       const data = await handleResponse(response);
       setBookings(data.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching bookings:', error);
-      toast.error(error.message || 'Failed to load bookings');
+      toast.error(getErrorMessage(error) || 'Failed to load bookings');
     } finally {
       setLoading(false);
     }
@@ -53,7 +58,7 @@ export const usePayments = () => {
       const response = await fetch(`${API_URL}/api/payments`);
       const data = await handleResponse(response);
       setPayments(data.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching payments:', error);
     }
   }, []);
@@ -150,9 +155,9 @@ export const usePayments = () => {
       }
 
       return payment;
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      toast.error(error.message || 'Failed to process payment');
+    } catch (error: unknown) {
+       console.error('Payment error:', error);
+      toast.error(getErrorMessage(error) || 'Failed to process payment');
       return null;
     } finally {
       setProcessing(false);
@@ -175,9 +180,9 @@ export const usePayments = () => {
       await handleResponse(response);
       await fetchBookings();
       toast.success('Payment status updated');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating payment:', error);
-      toast.error(error.message || 'Failed to update payment status');
+      toast.error(getErrorMessage(error) || 'Failed to update payment status');
     }
   };
 
