@@ -20,8 +20,7 @@ import axios from 'axios';
 import { useAuthContext } from '@/app/context/AuthContext';
 import { Booking } from '@/app/types/payment';
 
-const API_URL = 'http://localhost:5002';
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003';
 export default function CustomerPaymentsPage() {
   const { user } = useAuthContext();
   const [bookings, setBookings] = useState<Booking[]>([]);
