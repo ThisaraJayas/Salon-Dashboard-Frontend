@@ -42,7 +42,11 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/salon-frontend:latest
+          tags: |
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/salon-frontend:latest
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/salon-frontend:${{ github.sha }}
+            build-args: |
+            NEXT_PUBLIC_API_BASE_URL=http://ctse-alb-320060941.eu-north-1.elb.amazonaws.com/api
 
       # 🚀 Deploy to ECS
       - name: 🚀 Deploy to ECS
