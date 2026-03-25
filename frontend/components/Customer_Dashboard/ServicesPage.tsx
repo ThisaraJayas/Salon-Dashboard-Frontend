@@ -144,7 +144,8 @@ interface Service {
   image?: string;
 }
 
-const API_URL = "http://localhost:4000/api/services";
+const API_URL =
+  "http://ctse-alb-320060941.eu-north-1.elb.amazonaws.com/api/services";
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -199,7 +200,9 @@ export default function ServicesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filteredServices.map((service: Service) => {
           const imageUrl = service.image
-            ? encodeURI(`http://localhost:4000${service.image}`)
+            ? encodeURI(
+                `http://ctse-alb-320060941.eu-north-1.elb.amazonaws.com${service.image}`,
+              )
             : "/placeholder.jpg";
 
           return (
